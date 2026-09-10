@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html lang="ta">
+<head>
+<meta charset="UTF-8">
+<title>Admin Login</title>
+<link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+<div class="login-box">
+  <h2>Admin உள்நுழைவு</h2>
+  {% with messages = get_flashed_messages() %}
+    {% if messages %}
+      <div class="flash-error">{{ messages[0] }}</div>
+    {% endif %}
+  {% endwith %}
+  <form method="POST">
+    <input type="password" name="password" placeholder="கடவுச்சொல்" required autofocus>
+    <button type="submit">உள்நுழை</button>
+  </form>
+  <a class="back-link" href="/">← முகப்புக்குத் திரும்பு</a>
+</div>
+</body>
+</html>

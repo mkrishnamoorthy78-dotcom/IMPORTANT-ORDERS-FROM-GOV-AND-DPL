@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="ta">
+<head>
+<meta charset="UTF-8">
+<title>ஆணைகள் Repository - தமிழ்நாடு பொது நூலகத் துறை அமைச்சுப் பணியாளர்கள் சங்கம்</title>
+<link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+<header class="topbar">
+  <h1>பொது நூலகத் துறை தொடர்பான மற்றும் பணியாளர் நலன் தொடர்பான ஆணைகள்</h1>
+  <a class="admin-link" href="/admin">Admin</a>
+</header>
+
+<main class="container">
+  <div id="mainCategoryTabs" class="tabs"></div>
+  <div id="subCategoryTabs" class="tabs sub-tabs"></div>
+
+  <div class="filter-row">
+    <label for="viewTypeSelect">ஆவணப் பார்வை முறை:</label>
+    <select id="viewTypeSelect">
+      <option value="">அனைத்தும்</option>
+    </select>
+  </div>
+
+  <div id="ordersList" class="orders-grid"></div>
+  <p id="emptyMsg" class="empty-msg" style="display:none">ஆணைகள் எதுவும் இல்லை</p>
+</main>
+
+<script>
+let CATEGORIES = null;
+let selectedMain = null;
+let selectedSub = null;
+
+async function loadCategories() {
+  const res = await fetch('/api/categories');
+  CATEGORIES = await res.json();
+  renderMainTabs();
+  renderViewTypes();
+  if (CATEGORIES.main_categories.length) {
+    selectMain(CATEGORIES.main_categories[0].id);
+  }
+}
+
+function renderMainTabs() {
+  const wrap = document.getElementById('mainCategoryTabs');
+  wrap.innerHTML = '';
+  CATEGORIES.main_categories.forEach(mc => {
+    const btn = document.createElement('button');
+    btn.textContent = mc.name;
+    btn.className = 'tab' + (mc.id === selectedMain ? ' active' : '');
+    btn.onclick = () => selectMain(mc.id);
+    wrap.appendChild(btn);
+  });
+}
+
+function renderViewTypes() {
+  const sel = document.getElementById('viewTypeSelect');
+  CATEGORIES.view_types.forEach(vt => {
+    const opt = document.createElement('option');
+    opt.value = vt.id;
+    opt.textContent = vt.name;
+    sel.appendChild(opt);
+  });
+  sel.onchange = loadOrders;
+}
+
+function selectMain(id) {
+  selectedMain = id;
+  selectedSub = null;
+  renderMainTabs();
+  const mc = CATEGORIES.main_categories.find(m => m.id === id);
+  const subWrap = document.getElementById('subCategoryTabs');
+  subWrap.innerHTML = '';
+  mc.sub_categories.forEach(sc => {
+    const btn = document.createElement('button');
+    btn.textContent = sc.name;
+    btn.className = 'tab sub' + (sc.id === selectedSub ? ' active' : '');
+    btn.onclick = () => selectSub(sc.id);
+    subWrap.appendChild(btn);
+  });
+  if (mc.sub_categories.length) {
+    selectSub(mc.sub_categories[0].id);
+  } else {
+    renderOrders([]);
+  }
+}
+
+function selectSub(id) {
+  selectedSub = id;
+  const mc = CATEGORIES.main_categories.find(m => m.id === selectedMain);
+  const subWrap = document.getElementById('subCategoryTabs');
+  [...subWrap.children].forEach((btn, i) => {
+    btn.classList.toggle('active', mc.sub_categories[i].id === id);
+  });
+  loadOrders();
+}
+
+async function loadOrders() {
+  const viewTypeId = document.getElementById('viewTypeSelect').value;
+  const params = new URLSearchParams();
+  if (selectedSub) params.set('sub_category_id', selectedSub);
+  if (viewTypeId) params.set('view_type_id', viewTypeId);
+  const res = await fetch('/api/orders?' + params.toString());
+  const orders = await res.json();
+  renderOrders(orders);
+}
+
+function renderOrders(orders) {
+  const grid = document.getElementById('ordersList');
+  const empty = document.getElementById('emptyMsg');
+  grid.innerHTML = '';
+  empty.style.display = orders.length ? 'none' : 'block';
+  orders.forEach(o => {
+    const card = document.createElement('div');
+    card.className = 'order-card';
+    const date = new Date(o.uploaded_at).toLocaleDateString('ta-IN');
+    card.innerHTML = `
+      <div class="order-icon">${o.file_type === 'pdf' ? '📄' : '🖼️'}</div>
+      <div class="order-info">
+        <div class="order-title">${o.title}</div>
+        <div class="order-meta">${o.view_type} • ${date}</div>
+      </div>
+      <a class="view-btn" href="/view/${o.id}" target="_blank">பார்க்க</a>
+    `;
+    grid.appendChild(card);
+  });
+}
+
+loadCategories();
+</script>
+</body>
+</html>

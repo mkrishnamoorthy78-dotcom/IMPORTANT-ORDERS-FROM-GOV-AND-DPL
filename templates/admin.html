@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="ta">
+<head>
+<meta charset="UTF-8">
+<title>Admin Dashboard - ஆணைகள் Repository</title>
+<link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+<header class="topbar">
+  <h1>Admin Dashboard</h1>
+  <a class="admin-link" href="/admin/logout">வெளியேறு</a>
+</header>
+
+<main class="container">
+  {% with messages = get_flashed_messages() %}
+    {% if messages %}
+      <div class="flash-msg">{{ messages[0] }}</div>
+    {% endif %}
+  {% endwith %}
+
+  <section class="card">
+    <h2>1. புதிய ஆணை பதிவேற்றம்</h2>
+    <form method="POST" action="/admin/upload" enctype="multipart/form-data" class="form-grid">
+      <input type="text" name="title" placeholder="ஆணை தலைப்பு" required>
+      <select name="sub_category_id" id="subCatSelect" required></select>
+      <select name="view_type_id" id="viewTypeSelect" required></select>
+      <input type="file" name="file" accept=".pdf,.jpg,.jpeg,.png" required>
+      <button type="submit">பதிவேற்று</button>
+    </form>
+  </section>
+
+  <section class="card">
+    <h2>2. முதன்மை வகைகள் நிர்வாகம்</h2>
+    <form method="POST" action="/admin/category/add_main" class="inline-form">
+      <input type="text" name="name" placeholder="புதிய முதன்மை வகை" required>
+      <button type="submit">சேர்</button>
+    </form>
+    <div id="mainCategoryList" class="manage-list"></div>
+  </section>
+
+  <section class="card">
+    <h2>3. துணை வகைகள் நிர்வாகம்</h2>
+    <form method="POST" action="/admin/category/add_sub" class="inline-form">
+      <select name="main_category_id" id="mainCatDropdown" required></select>
+      <input type="text" name="name" placeholder="புதிய துணை வகை" required>
+      <button type="submit">சேர்</button>
+    </form>
+    <div id="subCategoryList" class="manage-list"></div>
+  </section>
+
+  <section class="card">
+    <h2>4. பதிவேற்றப்பட்ட ஆணைகள்</h2>
+    <div id="ordersManageList" class="manage-list"></div>
+  </section>
+</main>
+
+<script>
+let CATEGORIES = null;
+
+async function loadAll() {
+  const res = await fetch('/api/categories');
+  CATEGORIES = await res.json();
+  renderMainCategoryList();
+  renderMainCatDropdown();
+  renderSubCategoryList();
+  renderUploadFormSelects();
+  await loadOrdersManage();
+}
+
+function renderMainCategoryList() {
+  const wrap = document.getElementById('mainCategoryList');
+  wrap.innerHTML = '';
+  CATEGORIES.main_categories.forEach(mc => {
+    const row = document.createElement('div');
+    row.className = 'manage-row';
+    row.innerHTML = `<span>${mc.name}</span>`;
+    const form = document.createElement('form');
+    form.method = 'POST';
+    form.action = `/admin/category/delete_main/${mc.id}`;
+    form.innerHTML = `<button class="danger-btn" onclick="return confirm('இதை நீக்கவா? இதனுள் உள்ள துணை வகைகளும் ஆணைகளும் நீக்கப்படும்.')">நீக்கு</button>`;
+    row.appendChild(form);
+    wrap.appendChild(row);
+  });
+}
+
+function renderMainCatDropdown() {
+  const sel = document.getElementById('mainCatDropdown');
+  sel.innerHTML = '';
+  CATEGORIES.main_categories.forEach(mc => {
+    const opt = document.createElement('option');
+    opt.value = mc.id;
+    opt.textContent = mc.name;
+    sel.appendChild(opt);
+  });
+}
+
+function renderSubCategoryList() {
+  const wrap = document.getElementById('subCategoryList');
+  wrap.innerHTML = '';
+  CATEGORIES.main_categories.forEach(mc => {
+    mc.sub_categories.forEach(sc => {
+      const row = document.createElement('div');
+      row.className = 'manage-row';
+      row.innerHTML = `<span>${mc.name} → ${sc.name}</span>`;
+      const form = document.createElement('form');
+      form.method = 'POST';
+      form.action = `/admin/category/delete_sub/${sc.id}`;
+      form.innerHTML = `<button class="danger-btn" onclick="return confirm('இதை நீக்கவா?')">நீக்கு</button>`;
+      row.appendChild(form);
+      wrap.appendChild(row);
+    });
+  });
+}
+
+function renderUploadFormSelects() {
+  const subSel = document.getElementById('subCatSelect');
+  subSel.innerHTML = '';
+  CATEGORIES.main_categories.forEach(mc => {
+    mc.sub_categories.forEach(sc => {
+      const opt = document.createElement('option');
+      opt.value = sc.id;
+      opt.textContent = `${mc.name} → ${sc.name}`;
+      subSel.appendChild(opt);
+    });
+  });
+
+  const vtSel = document.getElementById('viewTypeSelect');
+  vtSel.innerHTML = '';
+  CATEGORIES.view_types.forEach(vt => {
+    const opt = document.createElement('option');
+    opt.value = vt.id;
+    opt.textContent = vt.name;
+    vtSel.appendChild(opt);
+  });
+}
+
+async function loadOrdersManage() {
+  const res = await fetch('/api/orders');
+  const orders = await res.json();
+  const wrap = document.getElementById('ordersManageList');
+  wrap.innerHTML = '';
+  orders.forEach(o => {
+    const row = document.createElement('div');
+    row.className = 'manage-row';
+    row.innerHTML = `<span>${o.title} (${o.main_category} → ${o.sub_category}, ${o.view_type})</span>`;
+    const actions = document.createElement('span');
+    const viewLink = document.createElement('a');
+    viewLink.href = `/view/${o.id}`;
+    viewLink.target = '_blank';
+    viewLink.textContent = 'பார்க்க';
+    viewLink.className = 'view-btn';
+    actions.appendChild(viewLink);
+
+    const form = document.createElement('form');
+    form.method = 'POST';
+    form.action = `/admin/order/delete/${o.id}`;
+    form.style.display = 'inline';
+    form.innerHTML = `<button class="danger-btn" onclick="return confirm('இந்த ஆணையை நீக்கவா?')">நீக்கு</button>`;
+    actions.appendChild(form);
+
+    row.appendChild(actions);
+    wrap.appendChild(row);
+  });
+}
+
+loadAll();
+</script>
+</body>
+</html>
