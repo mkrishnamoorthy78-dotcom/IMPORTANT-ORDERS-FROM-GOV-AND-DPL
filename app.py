@@ -17,6 +17,14 @@ app.secret_key = os.environ.get("SECRET_KEY", "dev-secret-change-me")
 
 ADMIN_PASSWORD = os.environ.get("ADMIN_PASSWORD", "Dlodgl@789")
 
+# Auto-create tables on every startup (safe to run repeatedly - uses
+# ON CONFLICT DO NOTHING). This removes the need for Shell access,
+# which is not available on Render's free plan.
+try:
+    init_db()
+except Exception as e:
+    print(f"init_db() warning: {e}")
+
 
 def admin_required(f):
     @wraps(f)
