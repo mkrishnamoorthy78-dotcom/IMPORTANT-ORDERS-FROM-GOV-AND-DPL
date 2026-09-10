@@ -14,6 +14,7 @@ load_dotenv()
 
 app = Flask(__name__)
 app.secret_key = os.environ.get("SECRET_KEY", "dev-secret-change-me")
+app.config["MAX_CONTENT_LENGTH"] = 20 * 1024 * 1024  # 20 MB upload limit
 
 ADMIN_PASSWORD = os.environ.get("ADMIN_PASSWORD", "Dlodgl@789")
 
@@ -249,6 +250,12 @@ def delete_order(order_id):
 def psycopg2_binary(data: bytes):
     import psycopg2
     return psycopg2.Binary(data)
+
+
+@app.errorhandler(413)
+def too_large(e):
+    flash("கோப்பு அளவு 20 MB-க்கு மேல் இருக்கக்கூடாது")
+    return redirect(url_for("admin_dashboard"))
 
 
 @app.route("/healthz")
